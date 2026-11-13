@@ -1,12 +1,6 @@
--- Original LMS tables and sample data. Run only on a NEW empty database.
 USE LMS_Project_DB;
 GO
 
-/* ---------------------------------------------------------------------
-   1. USERS  (common login data for teachers and students)
-   FDs: UserID -> FullName, Email, PasswordHash, Role, Phone, CreatedAt
-        Email  -> UserID (Email is UNIQUE, so it is also a candidate key)
-   --------------------------------------------------------------------- */
 CREATE TABLE Users (
     UserID        INT IDENTITY(1,1) NOT NULL,
     FullName      NVARCHAR(100)     NOT NULL,
@@ -21,10 +15,6 @@ CREATE TABLE Users (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   2. TEACHERS  (teacher-only profile data, 1:1 with Users)
-   FDs: TeacherID -> Qualification, Bio
-   --------------------------------------------------------------------- */
 CREATE TABLE Teachers (
     TeacherID      INT           NOT NULL,
     Qualification  NVARCHAR(100) NULL,
@@ -34,10 +24,6 @@ CREATE TABLE Teachers (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   3. STUDENTS  (student-only profile data, 1:1 with Users)
-   FDs: StudentID -> DateOfBirth, Institution
-   --------------------------------------------------------------------- */
 CREATE TABLE Students (
     StudentID    INT           NOT NULL,
     DateOfBirth  DATE          NULL,
@@ -47,10 +33,6 @@ CREATE TABLE Students (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   4. CATEGORIES
-   FDs: CategoryID -> CategoryName,  CategoryName -> CategoryID
-   --------------------------------------------------------------------- */
 CREATE TABLE Categories (
     CategoryID    INT IDENTITY(1,1) NOT NULL,
     CategoryName  NVARCHAR(50)      NOT NULL,
@@ -59,11 +41,6 @@ CREATE TABLE Categories (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   5. COURSES
-   FDs: CourseID -> TeacherID, CategoryID, Title, Description, CreatedAt, IsPublished
-   (Teacher name / category name are NOT stored here -> no transitive FD)
-   --------------------------------------------------------------------- */
 CREATE TABLE Courses (
     CourseID     INT IDENTITY(1,1) NOT NULL,
     TeacherID    INT               NOT NULL,
@@ -78,11 +55,6 @@ CREATE TABLE Courses (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   6. LESSONS  (video lessons of a course, in order)
-   FDs: LessonID -> CourseID, LessonNo, Title, VideoPath, DurationMin
-        (CourseID, LessonNo) -> LessonID   (candidate key)
-   --------------------------------------------------------------------- */
 CREATE TABLE Lessons (
     LessonID     INT IDENTITY(1,1) NOT NULL,
     CourseID     INT               NOT NULL,
@@ -98,10 +70,6 @@ CREATE TABLE Lessons (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   7. LESSON_MATERIALS  (PDF / slides / notes attached to a lesson)
-   FDs: MaterialID -> LessonID, Title, FilePath, UploadedAt
-   --------------------------------------------------------------------- */
 CREATE TABLE LessonMaterials (
     MaterialID  INT IDENTITY(1,1) NOT NULL,
     LessonID    INT               NOT NULL,
@@ -113,11 +81,6 @@ CREATE TABLE LessonMaterials (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   8. ENROLLMENTS  (M:N between Students and Courses)
-   FDs: (StudentID, CourseID) -> EnrolledAt, CompletedAt
-   CompletedAt = NULL means the course is still in progress.
-   --------------------------------------------------------------------- */
 CREATE TABLE Enrollments (
     StudentID    INT          NOT NULL,
     CourseID     INT          NOT NULL,
@@ -129,10 +92,6 @@ CREATE TABLE Enrollments (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   9. LESSON_PROGRESS  (a row means the student has finished that lesson)
-   FDs: (StudentID, LessonID) -> CompletedAt
-   --------------------------------------------------------------------- */
 CREATE TABLE LessonProgress (
     StudentID    INT          NOT NULL,
     LessonID     INT          NOT NULL,
@@ -143,12 +102,6 @@ CREATE TABLE LessonProgress (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   10. QUIZZES
-   FDs: QuizID -> CourseID, Title, TimeLimitMin, PassingMarks, CreatedAt
-   Total marks are NOT stored (they are the SUM of question marks),
-   so there is no redundant / derived column.
-   --------------------------------------------------------------------- */
 CREATE TABLE Quizzes (
     QuizID        INT IDENTITY(1,1) NOT NULL,
     CourseID      INT               NOT NULL,
@@ -163,10 +116,6 @@ CREATE TABLE Quizzes (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   11. QUESTIONS
-   FDs: QuestionID -> QuizID, QuestionText, Marks
-   --------------------------------------------------------------------- */
 CREATE TABLE Questions (
     QuestionID    INT IDENTITY(1,1) NOT NULL,
     QuizID        INT               NOT NULL,
@@ -178,10 +127,6 @@ CREATE TABLE Questions (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   12. QUESTION_OPTIONS  (weak entity: options A-D of a question)
-   FDs: (QuestionID, OptionLabel) -> OptionText, IsCorrect
-   --------------------------------------------------------------------- */
 CREATE TABLE QuestionOptions (
     QuestionID   INT           NOT NULL,
     OptionLabel  CHAR(1)       NOT NULL,
@@ -193,11 +138,6 @@ CREATE TABLE QuestionOptions (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   13. QUIZ_ATTEMPTS
-   FDs: AttemptID -> QuizID, StudentID, StartedAt, SubmittedAt, Score
-   Score is filled automatically by the system (auto-grading, Phase 2).
-   --------------------------------------------------------------------- */
 CREATE TABLE QuizAttempts (
     AttemptID    INT IDENTITY(1,1) NOT NULL,
     QuizID       INT               NOT NULL,
@@ -212,13 +152,6 @@ CREATE TABLE QuizAttempts (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   14. ATTEMPT_ANSWERS  (option chosen for each question in an attempt)
-   FDs: (AttemptID, QuestionID) -> OptionLabel
-   The option is referenced by the composite key (QuestionID, OptionLabel).
-   If we had used a global OptionID instead, the FD OptionID -> QuestionID
-   would break BCNF (OptionID is not a super key of this table).
-   --------------------------------------------------------------------- */
 CREATE TABLE AttemptAnswers (
     AttemptID    INT     NOT NULL,
     QuestionID   INT     NOT NULL,
@@ -230,10 +163,6 @@ CREATE TABLE AttemptAnswers (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   15. ASSIGNMENTS
-   FDs: AssignmentID -> CourseID, Title, Instructions, DueDate, TotalMarks, CreatedAt
-   --------------------------------------------------------------------- */
 CREATE TABLE Assignments (
     AssignmentID  INT IDENTITY(1,1) NOT NULL,
     CourseID      INT               NOT NULL,
@@ -248,12 +177,6 @@ CREATE TABLE Assignments (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   16. SUBMISSIONS  (homework uploaded by a student + teacher's grading)
-   FDs: SubmissionID -> AssignmentID, StudentID, FilePath, SubmittedAt,
-                        MarksObtained, Feedback, GradedAt
-        (AssignmentID, StudentID) -> SubmissionID   (candidate key)
-   --------------------------------------------------------------------- */
 CREATE TABLE Submissions (
     SubmissionID   INT IDENTITY(1,1) NOT NULL,
     AssignmentID   INT               NOT NULL,
@@ -271,10 +194,6 @@ CREATE TABLE Submissions (
 );
 GO
 
-/* ---------------------------------------------------------------------
-   17. ANNOUNCEMENTS  (course notices from the teacher)
-   FDs: AnnouncementID -> CourseID, Title, Message, PostedAt
-   --------------------------------------------------------------------- */
 CREATE TABLE Announcements (
     AnnouncementID  INT IDENTITY(1,1) NOT NULL,
     CourseID        INT               NOT NULL,
@@ -286,13 +205,6 @@ CREATE TABLE Announcements (
 );
 GO
 
-
-/* =====================================================================
-   SAMPLE DATA
-   Passwords are stored as SHA-256 hashes, never as plain text.
-   ===================================================================== */
-
--- Users 1-3 are teachers, 4-9 are students
 INSERT INTO Users (FullName, Email, PasswordHash, Role, Phone, CreatedAt) VALUES
 (N'Dr. Ayesha Khan',  'ayesha.khan@lms.edu',      CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', 'ayesha@123'), 2), 'Teacher', '0300-1111111', '2026-08-01 09:00'),
 (N'Mr. Bilal Ahmed',  'bilal.ahmed@lms.edu',      CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', 'bilal@123'),  2), 'Teacher', '0300-2222222', '2026-08-01 09:30'),
@@ -317,7 +229,6 @@ INSERT INTO Students (StudentID, DateOfBirth, Institution) VALUES
 (8, '2004-05-18', N'FAST NUCES Lahore'),
 (9, '2005-09-09', N'LUMS');
 
--- 'Artificial Intelligence' intentionally has no course yet
 INSERT INTO Categories (CategoryName) VALUES
 (N'Programming'), (N'Databases'), (N'Mathematics'), (N'Web Development'), (N'Artificial Intelligence');
 
@@ -329,18 +240,18 @@ INSERT INTO Courses (TeacherID, CategoryID, Title, Description, CreatedAt) VALUE
 (1, 4, N'Web Development with React',  N'Build modern websites using React and Tailwind CSS.',    '2026-08-09');
 
 INSERT INTO Lessons (CourseID, LessonNo, Title, VideoPath, DurationMin) VALUES
-(1, 1, N'Variables and Data Types', 'videos/c1/l1.mp4', 25),   -- LessonID 1
-(1, 2, N'Conditions and Loops',     'videos/c1/l2.mp4', 30),   -- 2
-(1, 3, N'Functions',                'videos/c1/l3.mp4', 28),   -- 3
-(2, 1, N'Introduction to DBMS',     'videos/c2/l1.mp4', 20),   -- 4
-(2, 2, N'ER Modeling',              'videos/c2/l2.mp4', 35),   -- 5
-(2, 3, N'Normalization up to BCNF', 'videos/c2/l3.mp4', 40),   -- 6
-(2, 4, N'SQL Basics',               'videos/c2/l4.mp4', 32),   -- 7
-(3, 1, N'Joins in Depth',           'videos/c3/l1.mp4', 45),   -- 8
-(3, 2, N'Subqueries',               'videos/c3/l2.mp4', 38),   -- 9
-(4, 1, N'Limits',                   'videos/c4/l1.mp4', 30),   -- 10
-(4, 2, N'Derivatives',              'videos/c4/l2.mp4', 33),   -- 11
-(5, 1, N'React Basics',             'videos/c5/l1.mp4', 27);   -- 12
+(1, 1, N'Variables and Data Types', 'videos/c1/l1.mp4', 25),
+(1, 2, N'Conditions and Loops',     'videos/c1/l2.mp4', 30),
+(1, 3, N'Functions',                'videos/c1/l3.mp4', 28),
+(2, 1, N'Introduction to DBMS',     'videos/c2/l1.mp4', 20),
+(2, 2, N'ER Modeling',              'videos/c2/l2.mp4', 35),
+(2, 3, N'Normalization up to BCNF', 'videos/c2/l3.mp4', 40),
+(2, 4, N'SQL Basics',               'videos/c2/l4.mp4', 32),
+(3, 1, N'Joins in Depth',           'videos/c3/l1.mp4', 45),
+(3, 2, N'Subqueries',               'videos/c3/l2.mp4', 38),
+(4, 1, N'Limits',                   'videos/c4/l1.mp4', 30),
+(4, 2, N'Derivatives',              'videos/c4/l2.mp4', 33),
+(5, 1, N'React Basics',             'videos/c5/l1.mp4', 27);
 
 INSERT INTO LessonMaterials (LessonID, Title, FilePath, UploadedAt) VALUES
 (1,  N'Data Types Slides',      'files/c1/datatypes.pdf',    '2026-08-05 10:00'),
@@ -348,7 +259,6 @@ INSERT INTO LessonMaterials (LessonID, Title, FilePath, UploadedAt) VALUES
 (6,  N'Normalization Notes',    'files/c2/normalization.pdf','2026-08-06 10:30'),
 (10, N'Limits Worksheet',       'files/c4/limits.pdf',       '2026-08-08 11:00');
 
--- 'Web Development with React' (course 5) intentionally has no students yet
 INSERT INTO Enrollments (StudentID, CourseID, EnrolledAt, CompletedAt) VALUES
 (4, 1, '2026-08-15 10:00', '2026-09-10 18:00'),
 (4, 2, '2026-08-15 10:05', NULL),
@@ -370,19 +280,19 @@ INSERT INTO LessonProgress (StudentID, LessonID, CompletedAt) VALUES
 (8, 4, '2026-08-22'), (8, 5, '2026-08-29'), (8, 6, '2026-09-06');
 
 INSERT INTO Quizzes (CourseID, Title, TimeLimitMin, PassingMarks, CreatedAt) VALUES
-(1, N'C++ Basics Quiz',     10, 2, '2026-08-25'),   -- QuizID 1 (total 3 marks)
-(2, N'Normalization Quiz',  15, 3, '2026-09-02'),   -- QuizID 2 (total 5 marks)
-(4, N'Limits Quiz',         10, 2, '2026-09-01');   -- QuizID 3 (total 3 marks)
+(1, N'C++ Basics Quiz',     10, 2, '2026-08-25'),
+(2, N'Normalization Quiz',  15, 3, '2026-09-02'),
+(4, N'Limits Quiz',         10, 2, '2026-09-01');
 
 INSERT INTO Questions (QuizID, QuestionText, Marks) VALUES
-(1, N'Which data type stores whole numbers in C++?',          1),  -- 1
-(1, N'Which loop always runs at least once?',                 1),  -- 2
-(1, N'Which keyword sends a value back from a function?',     1),  -- 3
-(2, N'A table in 2NF has no ______ dependency.',              2),  -- 4
-(2, N'In BCNF every determinant must be a ______.',           2),  -- 5
-(2, N'1NF requires all column values to be ______.',          1),  -- 6
-(3, N'lim (x -> 0) sin(x)/x = ?',                             2),  -- 7
-(3, N'lim (x -> 2) (x + 3) = ?',                              1);  -- 8
+(1, N'Which data type stores whole numbers in C++?',          1),
+(1, N'Which loop always runs at least once?',                 1),
+(1, N'Which keyword sends a value back from a function?',     1),
+(2, N'A table in 2NF has no ______ dependency.',              2),
+(2, N'In BCNF every determinant must be a ______.',           2),
+(2, N'1NF requires all column values to be ______.',          1),
+(3, N'lim (x -> 0) sin(x)/x = ?',                             2),
+(3, N'lim (x -> 2) (x + 3) = ?',                              1);
 
 INSERT INTO QuestionOptions (QuestionID, OptionLabel, OptionText, IsCorrect) VALUES
 (1, 'A', N'int', 1),        (1, 'B', N'float', 0),          (1, 'C', N'char', 0),        (1, 'D', N'bool', 0),
@@ -394,17 +304,16 @@ INSERT INTO QuestionOptions (QuestionID, OptionLabel, OptionText, IsCorrect) VAL
 (7, 'A', N'0', 0),          (7, 'B', N'1', 1),              (7, 'C', N'Infinity', 0),    (7, 'D', N'Undefined', 0),
 (8, 'A', N'2', 0),          (8, 'B', N'3', 0),              (8, 'C', N'5', 1),           (8, 'D', N'6', 0);
 
--- Attempts 7 and 9 have Score = NULL: they will be auto-graded in Phase 2
 INSERT INTO QuizAttempts (QuizID, StudentID, StartedAt, SubmittedAt, Score) VALUES
-(1, 4, '2026-08-26 10:00', '2026-08-26 10:07', 3),     -- 1
-(1, 5, '2026-08-26 11:00', '2026-08-26 11:09', 2),     -- 2
-(1, 7, '2026-08-27 09:00', '2026-08-27 09:10', 1),     -- 3
-(2, 4, '2026-09-03 14:00', '2026-09-03 14:12', 5),     -- 4
-(2, 5, '2026-09-03 15:00', '2026-09-03 15:14', 3),     -- 5
-(2, 6, '2026-09-04 10:00', '2026-09-04 10:15', 0),     -- 6
-(2, 8, '2026-09-05 16:00', '2026-09-05 16:11', NULL),  -- 7
-(3, 6, '2026-09-02 12:00', '2026-09-02 12:08', 3),     -- 8
-(3, 7, '2026-09-02 13:00', '2026-09-02 13:09', NULL);  -- 9
+(1, 4, '2026-08-26 10:00', '2026-08-26 10:07', 3),
+(1, 5, '2026-08-26 11:00', '2026-08-26 11:09', 2),
+(1, 7, '2026-08-27 09:00', '2026-08-27 09:10', 1),
+(2, 4, '2026-09-03 14:00', '2026-09-03 14:12', 5),
+(2, 5, '2026-09-03 15:00', '2026-09-03 15:14', 3),
+(2, 6, '2026-09-04 10:00', '2026-09-04 10:15', 0),
+(2, 8, '2026-09-05 16:00', '2026-09-05 16:11', NULL),
+(3, 6, '2026-09-02 12:00', '2026-09-02 12:08', 3),
+(3, 7, '2026-09-02 13:00', '2026-09-02 13:09', NULL);
 
 INSERT INTO AttemptAnswers (AttemptID, QuestionID, OptionLabel) VALUES
 (1, 1, 'A'), (1, 2, 'C'), (1, 3, 'A'),
@@ -423,7 +332,6 @@ INSERT INTO Assignments (CourseID, Title, Instructions, DueDate, TotalMarks, Cre
 (2, N'Normalize to BCNF',       N'Normalize the given relation up to BCNF and show each step.','2026-10-05 23:59', 20, '2026-09-20'),
 (4, N'Limits Worksheet',        N'Solve all questions of the limits worksheet.',               '2026-09-30 23:59', 10, '2026-09-10');
 
--- NULL MarksObtained = not graded yet
 INSERT INTO Submissions (AssignmentID, StudentID, FilePath, SubmittedAt, MarksObtained, Feedback, GradedAt) VALUES
 (1, 4, 'uploads/a1/ali_raza.cpp',     '2026-09-18 20:00', 9,    N'Great work, clean code.',      '2026-09-22 10:00'),
 (1, 5, 'uploads/a1/fatima_noor.cpp',  '2026-09-21 09:30', 6,    N'Late submission, -2 marks.',   '2026-09-22 10:10'),
@@ -441,7 +349,6 @@ INSERT INTO Announcements (CourseID, Title, Message, PostedAt) VALUES
 (4, N'Quiz 1 Results',        N'Results of the Limits Quiz are now visible in your panel.', '2026-09-03 17:00');
 GO
 
--- Quick check: row count of every table
 SELECT t.name AS TableName, SUM(p.rows) AS TotalRows
 FROM sys.tables t
 JOIN sys.partitions p ON p.object_id = t.object_id AND p.index_id IN (0, 1)
